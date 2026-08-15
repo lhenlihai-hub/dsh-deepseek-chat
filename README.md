@@ -1,4 +1,4 @@
-# dsh-ask-deepseek
+# dsh-deepseek-chat
 
 [English](README.en.md) | 中文
 
@@ -18,11 +18,11 @@ DeepSeek Harness(dsh)Web UI 插件:在对话页右侧新增一个**「问 DeepSe
 
 ```bash
 # 从 npm 安装(发布后)
-dsh plugin --profile web add dsh-ask-deepseek
+dsh plugin --profile web add dsh-deepseek-chat
 
 # 本地开发:从源码目录安装
-git clone https://github.com/YOUR-NAME/dsh-ask-deepseek.git
-cd dsh-ask-deepseek
+git clone https://github.com/lhenlihai-hub/dsh-deepseek-chat.git
+cd dsh-deepseek-chat
 npm install
 npm run build
 dsh plugin --profile web add link:$(pwd)
@@ -38,7 +38,7 @@ dsh plugin --profile web add link:$(pwd)
 - 或终端执行:
 
 ```bash
-dsh plugin --profile web remove dsh-ask-deepseek
+dsh plugin --profile web remove dsh-deepseek-chat
 ```
 
 重启 `dsh web` 后生效。
@@ -58,7 +58,7 @@ npm run typecheck  # 类型检查
 
 ```
 src/
-├── index.ts          # 宿主半侧:/ask-deepseek/* 路由(chat SSE / models / uninstall)
+├── index.ts          # 宿主半侧:/deepseek-chat/* 路由(chat SSE / models / uninstall)
 └── client/
     ├── index.ts      # 浏览器半侧入口:挂载 React 根
     ├── app.tsx       # UI:入口按钮、聊天面板、设置弹窗

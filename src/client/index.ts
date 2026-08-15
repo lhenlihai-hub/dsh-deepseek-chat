@@ -1,12 +1,12 @@
 /**
- * dsh-ask-deepseek — browser half entry. Mounts the「问 DeepSeek」React root
+ * dsh-deepseek-chat — browser half entry. Mounts the「问 DeepSeek」React root
  * into document.body. React / react-dom resolve through the shell's frozen
  * module table (they are bundle externals); the stylesheet is one inline
  * <style data-plugin> tag.
  *
  * Failure policy: mounting failures are logged, never thrown — the web shell
  * fails the whole boot when a plugin apply throws.
- * @module dsh-ask-deepseek/client
+ * @module dsh-deepseek-chat/client
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -18,7 +18,7 @@ import { injectStyles, removeStyles } from './styles.ts'
 /** No shell services are required — the panel talks to its own host routes. */
 export const inject: string[] = []
 
-const HOST_ID = 'dsh-ask-deepseek-root'
+const HOST_ID = 'dsh-deepseek-chat-root'
 
 export function apply(ctx: Context): void {
   ctx.effect(() => {
@@ -31,7 +31,7 @@ export function apply(ctx: Context): void {
       root = createRoot(host)
       root.render(createElement(App))
     } catch (error) {
-      console.error('[dsh-ask-deepseek] mount failed:', error)
+      console.error('[dsh-deepseek-chat] mount failed:', error)
     }
     return () => {
       try {
@@ -42,5 +42,5 @@ export function apply(ctx: Context): void {
       host.remove()
       removeStyles()
     }
-  }, 'dsh-ask-deepseek: mount')
+  }, 'dsh-deepseek-chat: mount')
 }

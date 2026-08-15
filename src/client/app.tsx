@@ -1,20 +1,20 @@
 /**
- * dsh-ask-deepseek — browser UI: the floating「问 DeepSeek」entry, the
+ * dsh-deepseek-chat — browser UI: the floating「问 DeepSeek」entry, the
  * right-side chat panel (fresh conversation, flash/pro model switch) and the
  * settings modal (default model, feedback, uninstall).
  *
- * Talks to the host half over /ask-deepseek/* with SSE streaming. Chat
+ * Talks to the host half over /deepseek-chat/* with SSE streaming. Chat
  * history lives in component state only — opening the panel always starts a
  * conversation independent of the dsh agent session.
- * @module dsh-ask-deepseek/client/app
+ * @module dsh-deepseek-chat/client/app
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 // Replace with your GitHub repository before publishing.
-const ISSUES_URL = 'https://github.com/YOUR-NAME/dsh-ask-deepseek/issues'
+const ISSUES_URL = 'https://github.com/lhenlihai-hub/dsh-deepseek-chat/issues'
 const VERSION = '0.1.0'
-const MODEL_STORAGE_KEY = 'dsh-ask-deepseek:model'
+const MODEL_STORAGE_KEY = 'dsh-deepseek-chat:model'
 const FALLBACK_MODEL = 'deepseek-v4-flash'
 
 interface ModelInfo {
@@ -36,7 +36,7 @@ type PanelError = string | null
 // ---------------------------------------------------------------------------
 
 async function fetchModels(): Promise<ModelInfo[]> {
-  const res = await fetch('/ask-deepseek/models')
+  const res = await fetch('/deepseek-chat/models')
   const body = (await res.json()) as { ok: boolean; value?: { models?: ModelInfo[] }; error?: { message?: string } }
   if (!body.ok) throw new Error(body.error?.message ?? '模型列表获取失败')
   return body.value?.models ?? []
@@ -56,7 +56,7 @@ async function streamChat(
   signal: AbortSignal,
   handlers: StreamHandlers,
 ): Promise<void> {
-  const res = await fetch('/ask-deepseek/chat', {
+  const res = await fetch('/deepseek-chat/chat', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ model, messages }),
@@ -93,7 +93,7 @@ async function streamChat(
 }
 
 async function requestUninstall(): Promise<void> {
-  const res = await fetch('/ask-deepseek/uninstall', {
+  const res = await fetch('/deepseek-chat/uninstall', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: '{}',
@@ -128,51 +128,51 @@ function SettingsModal(props: SettingsProps): React.JSX.Element {
   }
 
   return (
-    <div className="askds-modal-mask" onClick={props.onClose}>
-      <div className="askds-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="askds-modal-title">问 DeepSeek · 设置</div>
+    <div className="ddsc-modal-mask" onClick={props.onClose}>
+      <div className="ddsc-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="ddsc-modal-title">问 DeepSeek · 设置</div>
 
-        <div className="askds-section">
-          <div className="askds-section-label">默认模型</div>
+        <div className="ddsc-section">
+          <div className="ddsc-section-label">默认模型</div>
           {props.models.map((m) => (
             <div
               key={m.id}
-              className={`askds-model-option${props.model === m.id ? ' active' : ''}`}
+              className={`ddsc-model-option${props.model === m.id ? ' active' : ''}`}
               onClick={() => props.onModelChange(m.id)}
             >
               <span>{m.name}</span>
-              <span className="askds-model-desc">{m.id.includes('flash') ? '更快' : '更强'}</span>
+              <span className="ddsc-model-desc">{m.id.includes('flash') ? '更快' : '更强'}</span>
             </div>
           ))}
         </div>
 
-        <div className="askds-section">
-          <div className="askds-section-label">意见反馈</div>
-          <a className="askds-link-btn" href={ISSUES_URL} target="_blank" rel="noreferrer">
+        <div className="ddsc-section">
+          <div className="ddsc-section-label">意见反馈</div>
+          <a className="ddsc-link-btn" href={ISSUES_URL} target="_blank" rel="noreferrer">
             去 GitHub Issues 提意见
           </a>
         </div>
 
-        <div className="askds-section">
-          <div className="askds-section-label">卸载插件</div>
+        <div className="ddsc-section">
+          <div className="ddsc-section-label">卸载插件</div>
           {uninstalled ? (
-            <div className="askds-hint">插件已卸载,重启 <code>dsh web</code> 后生效。</div>
+            <div className="ddsc-hint">插件已卸载,重启 <code>dsh web</code> 后生效。</div>
           ) : confirming ? (
             <>
-              <button className="askds-danger-btn" onClick={() => void uninstall()}>确认卸载 dsh-ask-deepseek</button>
-              <div className="askds-hint">
-                也可以在终端执行 <code>dsh plugin --profile web remove dsh-ask-deepseek</code>
+              <button className="ddsc-danger-btn" onClick={() => void uninstall()}>确认卸载 dsh-deepseek-chat</button>
+              <div className="ddsc-hint">
+                也可以在终端执行 <code>dsh plugin --profile web remove dsh-deepseek-chat</code>
               </div>
-              {uninstallError !== null && <div className="askds-hint">卸载失败:{uninstallError}</div>}
+              {uninstallError !== null && <div className="ddsc-hint">卸载失败:{uninstallError}</div>}
             </>
           ) : (
-            <button className="askds-danger-btn" onClick={() => setConfirming(true)}>卸载本插件…</button>
+            <button className="ddsc-danger-btn" onClick={() => setConfirming(true)}>卸载本插件…</button>
           )}
         </div>
 
-        <div className="askds-modal-foot">
-          <span className="askds-version">v{VERSION}</span>
-          <button className="askds-close-btn" onClick={props.onClose}>关闭</button>
+        <div className="ddsc-modal-foot">
+          <span className="ddsc-version">v{VERSION}</span>
+          <button className="ddsc-close-btn" onClick={props.onClose}>关闭</button>
         </div>
       </div>
     </div>
@@ -304,19 +304,19 @@ export function App(): React.JSX.Element {
   return (
     <>
       {!open && (
-        <button className="askds-entry" onClick={() => setOpen(true)} title="问 DeepSeek">
+        <button className="ddsc-entry" onClick={() => setOpen(true)} title="问 DeepSeek">
           问 DeepSeek
         </button>
       )}
 
       {open && (
         <>
-          <div className="askds-mask" onClick={() => setOpen(false)} />
-          <div className="askds-panel">
-            <div className="askds-header">
-              <span className="askds-title">问 DeepSeek</span>
+          <div className="ddsc-mask" onClick={() => setOpen(false)} />
+          <div className="ddsc-panel">
+            <div className="ddsc-header">
+              <span className="ddsc-title">问 DeepSeek</span>
               <select
-                className="askds-select"
+                className="ddsc-select"
                 value={model}
                 onChange={(e) => pickModel(e.target.value)}
                 disabled={streaming}
@@ -325,38 +325,38 @@ export function App(): React.JSX.Element {
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
-              <button className="askds-icon-btn" title="新对话" onClick={newChat}>✚</button>
-              <button className="askds-icon-btn" title="设置" onClick={() => setSettingsOpen(true)}>⚙</button>
-              <button className="askds-icon-btn" title="收起" onClick={() => setOpen(false)}>✕</button>
+              <button className="ddsc-icon-btn" title="新对话" onClick={newChat}>✚</button>
+              <button className="ddsc-icon-btn" title="设置" onClick={() => setSettingsOpen(true)}>⚙</button>
+              <button className="ddsc-icon-btn" title="收起" onClick={() => setOpen(false)}>✕</button>
             </div>
 
-            <div className="askds-messages" ref={listRef}>
+            <div className="ddsc-messages" ref={listRef}>
               {messages.length === 0 && (
-                <div className="askds-empty">
+                <div className="ddsc-empty">
                   与 DeepSeek 开始一段全新对话
                   <br />
                   使用你在 dsh 中配置的 API Key,独立会话、互不影响
                 </div>
               )}
               {messages.map((m, i) => (
-                <div key={i} className={`askds-msg ${m.role === 'user' ? 'askds-msg-user' : 'askds-msg-assistant'}`}>
+                <div key={i} className={`ddsc-msg ${m.role === 'user' ? 'ddsc-msg-user' : 'ddsc-msg-assistant'}`}>
                   {m.reasoning !== undefined && m.reasoning !== '' && (
-                    <div className="askds-reasoning">
-                      <div className="askds-reasoning-label">思考过程</div>
+                    <div className="ddsc-reasoning">
+                      <div className="ddsc-reasoning-label">思考过程</div>
                       {m.reasoning}
                     </div>
                   )}
-                  <span className={streaming && i === messages.length - 1 && m.role === 'assistant' ? 'askds-cursor' : undefined}>
+                  <span className={streaming && i === messages.length - 1 && m.role === 'assistant' ? 'ddsc-cursor' : undefined}>
                     {m.text}
                   </span>
                 </div>
               ))}
-              {panelError !== null && <div className="askds-msg askds-msg-error">{panelError}</div>}
+              {panelError !== null && <div className="ddsc-msg ddsc-msg-error">{panelError}</div>}
             </div>
 
-            <div className="askds-composer">
+            <div className="ddsc-composer">
               <textarea
-                className="askds-input"
+                className="ddsc-input"
                 rows={2}
                 placeholder="输入消息,Enter 发送,Shift+Enter 换行"
                 value={input}
@@ -369,9 +369,9 @@ export function App(): React.JSX.Element {
                 }}
               />
               {streaming ? (
-                <button className="askds-send askds-stop" onClick={stop}>停止</button>
+                <button className="ddsc-send ddsc-stop" onClick={stop}>停止</button>
               ) : (
-                <button className="askds-send" onClick={() => void send()} disabled={input.trim() === ''}>发送</button>
+                <button className="ddsc-send" onClick={() => void send()} disabled={input.trim() === ''}>发送</button>
               )}
             </div>
           </div>

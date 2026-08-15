@@ -1,5 +1,5 @@
 /**
- * Standalone build config for the dsh-ask-deepseek plugin.
+ * Standalone build config for the dsh-deepseek-chat plugin.
  *
  * Two artifacts:
  * - lib/index.js  — node half (host routes), ESM, all @deepseek-ai/* external
@@ -10,7 +10,7 @@
  */
 import type { UserConfig } from 'tsdown'
 
-const ID = 'dsh-ask-deepseek'
+const ID = 'dsh-deepseek-chat'
 
 /** Module specifiers the dsh web shell shares into the frozen module table. */
 const CLIENT_EXTERNALS: readonly string[] = [

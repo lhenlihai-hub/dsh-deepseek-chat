@@ -1,4 +1,4 @@
-# dsh-ask-deepseek
+# dsh-deepseek-chat
 
 English | [中文](README.md)
 
@@ -18,11 +18,11 @@ A DeepSeek Harness (dsh) Web UI plugin: an **"Ask DeepSeek"** entry on the right
 
 ```bash
 # From npm (once published)
-dsh plugin --profile web add dsh-ask-deepseek
+dsh plugin --profile web add dsh-deepseek-chat
 
 # Local development
-git clone https://github.com/YOUR-NAME/dsh-ask-deepseek.git
-cd dsh-ask-deepseek
+git clone https://github.com/lhenlihai-hub/dsh-deepseek-chat.git
+cd dsh-deepseek-chat
 npm install
 npm run build
 dsh plugin --profile web add link:$(pwd)
@@ -37,7 +37,7 @@ Restart `dsh web`, open any session, and the「问 DeepSeek」entry appears on t
 In-panel: Settings (⚙) → Uninstall → Confirm, or from a terminal:
 
 ```bash
-dsh plugin --profile web remove dsh-ask-deepseek
+dsh plugin --profile web remove dsh-deepseek-chat
 ```
 
 Restart `dsh web` to apply.
@@ -57,7 +57,7 @@ npm run typecheck
 
 ```
 src/
-├── index.ts          # host half: /ask-deepseek/* routes (chat SSE / models / uninstall)
+├── index.ts          # host half: /deepseek-chat/* routes (chat SSE / models / uninstall)
 └── client/
     ├── index.ts      # browser half entry: mounts the React root
     ├── app.tsx       # UI: entry button, chat panel, settings modal

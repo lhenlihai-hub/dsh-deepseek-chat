@@ -1,5 +1,5 @@
 /**
- * dsh-ask-deepseek — host half: the /ask-deepseek/* HTTP routes on the shared
+ * dsh-deepseek-chat — host half: the /deepseek-chat/* HTTP routes on the shared
  * webserver. Chat requests stream through the harness LLM seam (`ctx.llm`),
  * reusing the provider route the user already configured in dsh
  * (Settings → Models) — API key, base URL and settings overrides all apply.
@@ -7,7 +7,7 @@
  *
  * The browser half (exports "./client") is served by client-modules from the
  * same package's dsh.client declaration.
- * @module dsh-ask-deepseek
+ * @module dsh-deepseek-chat
  */
 
 import { spawn } from 'node:child_process'
@@ -18,7 +18,7 @@ import type { Context } from '@deepseek-ai/cordis'
 export const inject = ['webServer', 'llm']
 
 /** npm package name — the row `dsh plugin remove` uninstalls. */
-const PACKAGE_NAME = 'dsh-ask-deepseek'
+const PACKAGE_NAME = 'dsh-deepseek-chat'
 
 /** Preferred provider route; falls back to any route whose id mentions deepseek. */
 const PREFERRED_PROVIDER = 'deepseek-official'
@@ -221,7 +221,7 @@ async function handleChat(ctx: Context, req: IncomingMessage, res: ServerRespons
 
   // Map the plain wire messages onto the harness LLM seam vocabulary.
   const messages = parsed.messages.map((m, i) => ({
-    id: `ask-deepseek-${Date.now()}-${i}`,
+    id: `deepseek-chat-${Date.now()}-${i}`,
     role: m.role,
     content: [{ type: 'text', text: m.content }],
     source: m.role === 'user' ? { kind: 'user' } : m.role === 'system' ? { kind: 'plugin', plugin: PACKAGE_NAME } : { kind: 'model' },
@@ -295,12 +295,12 @@ export function apply(ctx: Context): void {
   const webServer = (ctx as unknown as { webServer: WebServerLike }).webServer
   ctx.effect(() => {
     const disposers = [
-      webServer.register({ kind: 'exact', path: '/ask-deepseek/models', handler: (req, res) => handleModels(ctx, req, res) }),
-      webServer.register({ kind: 'exact', path: '/ask-deepseek/chat', handler: (req, res) => handleChat(ctx, req, res) }),
-      webServer.register({ kind: 'exact', path: '/ask-deepseek/uninstall', handler: handleUninstall }),
+      webServer.register({ kind: 'exact', path: '/deepseek-chat/models', handler: (req, res) => handleModels(ctx, req, res) }),
+      webServer.register({ kind: 'exact', path: '/deepseek-chat/chat', handler: (req, res) => handleChat(ctx, req, res) }),
+      webServer.register({ kind: 'exact', path: '/deepseek-chat/uninstall', handler: handleUninstall }),
     ]
     return () => {
       for (const dispose of disposers) dispose()
     }
-  }, 'dsh-ask-deepseek: /ask-deepseek routes')
+  }, 'dsh-deepseek-chat: /deepseek-chat routes')
 }

@@ -1,5 +1,5 @@
 {
-  "name": "dsh-ask-deepseek",
+  "name": "dsh-deepseek-chat",
   "version": "0.1.0",
   "description": "Ask DeepSeek — a right-side chat panel for DeepSeek Harness (dsh) Web UI. Talk to DeepSeek V4 Flash / Pro in a fresh conversation, powered by the API key you already configured in dsh.",
   "type": "module",
@@ -45,7 +45,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR-NAME/dsh-ask-deepseek.git"
+    "url": "https://github.com/lhenlihai-hub/dsh-deepseek-chat.git"
   },
   "peerDependencies": {
     "react": "^18.2.0"
