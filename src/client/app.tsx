@@ -1,21 +1,30 @@
 /**
- * dsh-deepseek-chat — browser UI: the floating「问 DeepSeek」entry, the
- * right-side chat panel (fresh conversation, flash/pro model switch) and the
- * settings modal (default model, feedback, uninstall).
+ * dsh-deepseek-chat — browser UI: the floating「问 DeepSeek」entry, a
+ * draggable / resizable 4:3 chat window (fresh conversation, flash/pro model
+ * switch), the settings modal (default model, feedback, uninstall), and the
+ * selection quote popover (select text in the main dsh conversation →
+ * 「引用并问 DeepSeek」).
  *
  * Talks to the host half over /deepseek-chat/* with SSE streaming. Chat
- * history lives in component state only — opening the panel always starts a
- * conversation independent of the dsh agent session.
+ * history lives in component state only — the conversation is independent of
+ * the dsh agent session.
  * @module dsh-deepseek-chat/client/app
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-// Replace with your GitHub repository before publishing.
 const ISSUES_URL = 'https://github.com/lhenlihai-hub/dsh-deepseek-chat/issues'
-const VERSION = '0.1.0'
+const VERSION = '0.2.0'
 const MODEL_STORAGE_KEY = 'dsh-deepseek-chat:model'
 const FALLBACK_MODEL = 'deepseek-v4-flash'
+
+/** Default window size: 4:3. */
+const DEFAULT_W = 720
+const DEFAULT_H = 540
+const MIN_W = 400
+const MIN_H = 300
+/** Window chrome edge margin when clamping position. */
+const EDGE = 8
 
 interface ModelInfo {
   id: string
@@ -26,10 +35,16 @@ interface ModelInfo {
 interface ChatMessage {
   role: 'user' | 'assistant'
   text: string
+  /** Quoted main-conversation text this message asks about (user messages). */
+  quote?: string
   reasoning?: string
 }
 
-type PanelError = string | null
+interface QuotePop {
+  x: number
+  y: number
+  text: string
+}
 
 // ---------------------------------------------------------------------------
 // API helpers
@@ -100,6 +115,13 @@ async function requestUninstall(): Promise<void> {
   })
   const body = (await res.json()) as { ok: boolean; error?: { message?: string } }
   if (!body.ok) throw new Error(body.error?.message ?? '卸载失败')
+}
+
+/** Format a quoted question the way the model expects it. */
+function buildWireContent(quote: string | null, text: string): string {
+  if (quote === null) return text
+  const quoted = quote.split('\n').map((l) => `> ${l}`).join('\n')
+  return `${quoted}\n\n${text}`
 }
 
 // ---------------------------------------------------------------------------
@@ -199,13 +221,26 @@ export function App(): React.JSX.Element {
   })
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
+  const [pendingQuote, setPendingQuote] = useState<string | null>(null)
   const [streaming, setStreaming] = useState(false)
-  const [panelError, setPanelError] = useState<PanelError>(null)
+  const [panelError, setPanelError] = useState<string | null>(null)
+  const [quotePop, setQuotePop] = useState<QuotePop | null>(null)
+
+  // Window geometry: centered 4:3 by default, draggable / resizable after.
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => ({
+    x: Math.max(EDGE, Math.round((window.innerWidth - DEFAULT_W) / 2)),
+    y: Math.max(EDGE, Math.round((window.innerHeight - DEFAULT_H) / 2)),
+  }))
+  const [size, setSize] = useState<{ w: number; h: number }>({ w: DEFAULT_W, h: DEFAULT_H })
 
   const abortRef = useRef<AbortController | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const winRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; baseX: number; baseY: number } | null>(null)
+  const resizeRef = useRef<{ pointerId: number; startX: number; startY: number; baseW: number; baseH: number } | null>(null)
 
-  // Refresh the model catalog from the host whenever the panel opens.
+  // Refresh the model catalog from the host whenever the window opens.
   useEffect(() => {
     if (!open) return
     let stale = false
@@ -230,6 +265,108 @@ export function App(): React.JSX.Element {
     if (el !== null) el.scrollTop = el.scrollHeight
   }, [messages, streaming])
 
+  // ------------------------------------------------------------------
+  // Selection quote popover: select text anywhere in the main dsh UI
+  // (outside our own window) → offer「引用并问 DeepSeek」at its top-right.
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    const update = (): void => {
+      const sel = window.getSelection()
+      if (sel === null || sel.isCollapsed) {
+        setQuotePop(null)
+        return
+      }
+      const text = sel.toString().trim()
+      if (text === '') {
+        setQuotePop(null)
+        return
+      }
+      // Never offer quoting from inside our own window or the popover itself.
+      const anchor = sel.anchorNode
+      if (anchor !== null && winRef.current !== null && winRef.current.contains(anchor)) {
+        setQuotePop(null)
+        return
+      }
+      const range = sel.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      if (rect.width === 0 && rect.height === 0) {
+        setQuotePop(null)
+        return
+      }
+      setQuotePop({
+        x: Math.min(Math.max(rect.right, 160), window.innerWidth - 16),
+        y: Math.max(rect.top - 8, 40),
+        text,
+      })
+    }
+    const onMouseUp = (): void => {
+      // The selection is not final until the mouse is up; defer one tick.
+      setTimeout(update, 0)
+    }
+    const onMouseDown = (e: MouseEvent): void => {
+      // Clicking the popover itself is handled by its own button; anywhere
+      // else dismisses it.
+      const target = e.target as HTMLElement | null
+      if (target !== null && target.closest('.ddsc-quote-pop') !== null) return
+      setQuotePop(null)
+    }
+    const onScroll = (): void => setQuotePop(null)
+    document.addEventListener('mouseup', onMouseUp)
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('mouseup', onMouseUp)
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('scroll', onScroll, true)
+    }
+  }, [])
+
+  // ------------------------------------------------------------------
+  // Drag (title bar) & resize (corner handle) via pointer capture.
+  // ------------------------------------------------------------------
+  const onDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>): void => {
+    if ((e.target as HTMLElement).closest('button, select') !== null) return
+    dragRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, baseX: pos.x, baseY: pos.y }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }, [pos])
+
+  const onDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>): void => {
+    const drag = dragRef.current
+    if (drag === null || drag.pointerId !== e.pointerId) return
+    setPos({
+      x: Math.min(Math.max(drag.baseX + e.clientX - drag.startX, EDGE - size.w + 120), window.innerWidth - EDGE - 120),
+      y: Math.min(Math.max(drag.baseY + e.clientY - drag.startY, EDGE), window.innerHeight - EDGE - 48),
+    })
+  }, [size.w])
+
+  const onDragEnd = useCallback((e: React.PointerEvent<HTMLDivElement>): void => {
+    if (dragRef.current?.pointerId === e.pointerId) dragRef.current = null
+  }, [])
+
+  const onResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizeRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, baseW: size.w, baseH: size.h }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }, [size])
+
+  const onResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>): void => {
+    const rs = resizeRef.current
+    if (rs === null || rs.pointerId !== e.pointerId) return
+    setSize({
+      w: Math.min(Math.max(rs.baseW + e.clientX - rs.startX, MIN_W), window.innerWidth - pos.x - EDGE),
+      h: Math.min(Math.max(rs.baseH + e.clientY - rs.startY, MIN_H), window.innerHeight - pos.y - EDGE),
+    })
+  }, [pos])
+
+  const onResizeEnd = useCallback((e: React.PointerEvent<HTMLDivElement>): void => {
+    if (resizeRef.current?.pointerId === e.pointerId) resizeRef.current = null
+  }, [])
+
+  // ------------------------------------------------------------------
+  // Chat actions
+  // ------------------------------------------------------------------
+
   const pickModel = useCallback((id: string) => {
     setModel(id)
     try {
@@ -248,13 +385,28 @@ export function App(): React.JSX.Element {
     })
   }, [])
 
+  /** The quote popover action: park the selection as the pending quote. */
+  const quoteAndAsk = useCallback((): void => {
+    setQuotePop((pop) => {
+      if (pop !== null) {
+        setPendingQuote(pop.text)
+        setOpen(true)
+        window.getSelection()?.removeAllRanges()
+        setTimeout(() => inputRef.current?.focus(), 0)
+      }
+      return null
+    })
+  }, [])
+
   const send = useCallback(async (): Promise<void> => {
     const text = input.trim()
     if (text === '' || streaming) return
+    const quote = pendingQuote
     setInput('')
+    setPendingQuote(null)
     setPanelError(null)
 
-    const history: ChatMessage[] = [...messages, { role: 'user', text }]
+    const history: ChatMessage[] = [...messages, { role: 'user', text, quote: quote ?? undefined }]
     const withAssistant: ChatMessage[] = [...history, { role: 'assistant', text: '' }]
     setMessages(withAssistant)
     setStreaming(true)
@@ -262,7 +414,7 @@ export function App(): React.JSX.Element {
     const abort = new AbortController()
     abortRef.current = abort
 
-    const wire = history.map((m) => ({ role: m.role, content: m.text }))
+    const wire = history.map((m) => ({ role: m.role, content: buildWireContent(m.quote ?? null, m.text) }))
     try {
       await streamChat(model, wire, abort.signal, {
         onText: (delta) => patchLastAssistant((m) => ({ ...m, text: m.text + delta })),
@@ -289,7 +441,7 @@ export function App(): React.JSX.Element {
       setStreaming(false)
       abortRef.current = null
     }
-  }, [input, streaming, messages, model, patchLastAssistant])
+  }, [input, streaming, messages, model, pendingQuote, patchLastAssistant])
 
   const stop = useCallback((): void => {
     abortRef.current?.abort()
@@ -298,8 +450,13 @@ export function App(): React.JSX.Element {
   const newChat = useCallback((): void => {
     abortRef.current?.abort()
     setMessages([])
+    setPendingQuote(null)
     setPanelError(null)
   }, [])
+
+  // ------------------------------------------------------------------
+  // Render
+  // ------------------------------------------------------------------
 
   return (
     <>
@@ -310,55 +467,76 @@ export function App(): React.JSX.Element {
       )}
 
       {open && (
-        <>
-          <div className="ddsc-mask" onClick={() => setOpen(false)} />
-          <div className="ddsc-panel">
-            <div className="ddsc-header">
-              <span className="ddsc-title">问 DeepSeek</span>
-              <select
-                className="ddsc-select"
-                value={model}
-                onChange={(e) => pickModel(e.target.value)}
-                disabled={streaming}
-              >
-                {models.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-              <button className="ddsc-icon-btn" title="新对话" onClick={newChat}>✚</button>
-              <button className="ddsc-icon-btn" title="设置" onClick={() => setSettingsOpen(true)}>⚙</button>
-              <button className="ddsc-icon-btn" title="收起" onClick={() => setOpen(false)}>✕</button>
-            </div>
-
-            <div className="ddsc-messages" ref={listRef}>
-              {messages.length === 0 && (
-                <div className="ddsc-empty">
-                  与 DeepSeek 开始一段全新对话
-                  <br />
-                  使用你在 dsh 中配置的 API Key,独立会话、互不影响
-                </div>
-              )}
-              {messages.map((m, i) => (
-                <div key={i} className={`ddsc-msg ${m.role === 'user' ? 'ddsc-msg-user' : 'ddsc-msg-assistant'}`}>
-                  {m.reasoning !== undefined && m.reasoning !== '' && (
-                    <div className="ddsc-reasoning">
-                      <div className="ddsc-reasoning-label">思考过程</div>
-                      {m.reasoning}
-                    </div>
-                  )}
-                  <span className={streaming && i === messages.length - 1 && m.role === 'assistant' ? 'ddsc-cursor' : undefined}>
-                    {m.text}
-                  </span>
-                </div>
+        <div
+          ref={winRef}
+          className="ddsc-window"
+          style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
+        >
+          <div
+            className="ddsc-titlebar"
+            onPointerDown={onDragStart}
+            onPointerMove={onDragMove}
+            onPointerUp={onDragEnd}
+            onPointerCancel={onDragEnd}
+          >
+            <span className="ddsc-title">问 DeepSeek</span>
+            <select
+              className="ddsc-select"
+              value={model}
+              onChange={(e) => pickModel(e.target.value)}
+              disabled={streaming}
+            >
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
               ))}
-              {panelError !== null && <div className="ddsc-msg ddsc-msg-error">{panelError}</div>}
-            </div>
+            </select>
+            <button className="ddsc-icon-btn" title="新对话" onClick={newChat}>✚</button>
+            <button className="ddsc-icon-btn" title="设置" onClick={() => setSettingsOpen(true)}>⚙</button>
+            <button className="ddsc-icon-btn" title="关闭" onClick={() => setOpen(false)}>✕</button>
+          </div>
 
+          <div className="ddsc-messages" ref={listRef}>
+            {messages.length === 0 && (
+              <div className="ddsc-empty">
+                与 DeepSeek 开始一段全新对话
+                <br />
+                使用你在 dsh 中配置的 API Key,独立会话、互不影响
+                <br />
+                在主会话中选中文字,即可「引用并问 DeepSeek」
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} className={`ddsc-msg ${m.role === 'user' ? 'ddsc-msg-user' : 'ddsc-msg-assistant'}`}>
+                {m.quote !== undefined && m.quote !== '' && (
+                  <div className="ddsc-quote-block">{m.quote}</div>
+                )}
+                {m.reasoning !== undefined && m.reasoning !== '' && (
+                  <div className="ddsc-reasoning">
+                    <div className="ddsc-reasoning-label">思考过程</div>
+                    {m.reasoning}
+                  </div>
+                )}
+                <span className={streaming && i === messages.length - 1 && m.role === 'assistant' ? 'ddsc-cursor' : undefined}>
+                  {m.text}
+                </span>
+              </div>
+            ))}
+            {panelError !== null && <div className="ddsc-msg ddsc-msg-error">{panelError}</div>}
+          </div>
+
+          <div className="ddsc-composer-wrap">
+            {pendingQuote !== null && (
+              <div className="ddsc-quote-chip">
+                <span className="ddsc-quote-chip-text">{pendingQuote}</span>
+                <button className="ddsc-quote-chip-x" title="移除引用" onClick={() => setPendingQuote(null)}>✕</button>
+              </div>
+            )}
             <div className="ddsc-composer">
               <textarea
+                ref={inputRef}
                 className="ddsc-input"
                 rows={2}
-                placeholder="输入消息,Enter 发送,Shift+Enter 换行"
+                placeholder={pendingQuote !== null ? '针对引用内容提问…' : '输入消息,Enter 发送,Shift+Enter 换行'}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -375,7 +553,26 @@ export function App(): React.JSX.Element {
               )}
             </div>
           </div>
-        </>
+
+          <div
+            className="ddsc-resize-handle"
+            onPointerDown={onResizeStart}
+            onPointerMove={onResizeMove}
+            onPointerUp={onResizeEnd}
+            onPointerCancel={onResizeEnd}
+          />
+        </div>
+      )}
+
+      {quotePop !== null && (
+        <button
+          className="ddsc-quote-pop"
+          style={{ left: quotePop.x, top: quotePop.y }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={quoteAndAsk}
+        >
+          引用并问 DeepSeek
+        </button>
       )}
 
       {settingsOpen && (

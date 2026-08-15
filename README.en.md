@@ -6,8 +6,9 @@ A DeepSeek Harness (dsh) Web UI plugin: an **"Ask DeepSeek"** entry on the right
 
 ## Features
 
-- 💬 **Right-edge entry + slide-out panel**: a persistent vertical button opens the chat panel
-- 🆕 **Fresh, isolated conversations**: panel chats never touch dsh agent sessions; one click starts over
+- 💬 **Right-edge entry + floating window**: a persistent vertical button opens a **4:3 floating window** — drag it by the title bar, resize it from the bottom-right corner
+- 🆕 **Fresh, isolated conversations**: window chats never touch dsh agent sessions; one click starts over
+- 🖍️ **Select-to-quote**: select any text in the main conversation and a "Quote & ask DeepSeek" popover appears at its top-right — one click to ask with the quote attached
 - ⚡ **Flash / Pro switch**: header dropdown, with the default model persisted (localStorage)
 - 🔑 **Reuses your dsh API configuration**: the host half streams through `ctx.llm` and the registered `deepseek-official` route — API key, base URL and settings overrides all apply; the plugin never sees or stores any credential
 - 🌊 **Streaming**: SSE token-by-token output, reasoning display, cancellable at any time

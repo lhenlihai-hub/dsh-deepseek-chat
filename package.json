@@ -1,7 +1,7 @@
 {
   "name": "dsh-deepseek-chat",
-  "version": "0.1.0",
-  "description": "Ask DeepSeek — a right-side chat panel for DeepSeek Harness (dsh) Web UI. Talk to DeepSeek V4 Flash / Pro in a fresh conversation, powered by the API key you already configured in dsh.",
+  "version": "0.2.0",
+  "description": "Ask DeepSeek — a floating chat window for DeepSeek Harness (dsh) Web UI. Draggable, resizable 4:3 dialog, select-to-quote from the main conversation, DeepSeek V4 Flash / Pro, powered by the API key you already configured in dsh.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -40,7 +40,8 @@
     "deepseek-harness",
     "deepseek",
     "chat",
-    "side-panel"
+    "floating-window",
+    "quote"
   ],
   "license": "MIT",
   "repository": {
