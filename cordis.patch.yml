@@ -1,0 +1,13 @@
+# dsh-ask-deepseek bundle patch: inserts the dual-face plugin row into the web
+# profile roster. Applied as a profile bundle layer (the `dsh.bundle.patch`
+# manifest field); install with `dsh plugin --profile web add dsh-ask-deepseek`.
+#
+# The row is a bare plugin by package name: the node half (exports ".") runs in
+# the host process (/ask-deepseek/* routes on the shared webserver, streaming
+# through the user's configured `deepseek-official` llm route), and the
+# `dsh.client` declaration in package.json makes the browser half
+# (exports "./client", served at /plugins/ask-deepseek/client.js) load in the
+# web GUI.
+- insert:
+    - id: ask-deepseek
+      name: 'dsh-ask-deepseek'
